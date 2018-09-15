@@ -213,7 +213,6 @@ $$g(y|x) = \gamma_{0} + \frac{\gamma_{1}}{1 + exp^{-h_{1}(x)}} + \frac{\gamma_{2
 
 ```{r import_data8, eval=T}
 
-library(neuralnet)  
 set.seed(12345)
 max_data <- apply(data, 2, max) 
 min_data <- apply(data, 2, min)
@@ -281,6 +280,7 @@ g_y_x = g_y_x*(max_data[y] - min_data[y]) + min_data[y]
 # Comparing the prediction using compute and "by nand" yield similar result
 sum ( (pred_data - g_y_x)^2 )# Should be approx. zero within computer error.
 ``` 
+
 ### Put the Solution in Mathematical form
 
 $$h_{1}(x) = 1.6523 - 1.3239*totalDepth + 0.8746*TVD + 0.8528*perfInterval + 0.7155*stage + 0.2655*maxInjRate + 1.5617*manInjPres - 1.0303*totalProp - 1.2765*totalFluid - 2.1462*peakOil$$
