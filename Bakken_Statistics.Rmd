@@ -1,4 +1,9 @@
 ---
+output:
+  word_document: default
+  html_document: default
+---
+---
 title: "Neural Network & the Bakken- What goes on Under the Hood?"
 author: "Marshal Wigwe"
 output:  word_document
@@ -35,7 +40,7 @@ addmargins(table(bakken$County, bakken$targetFormation))
 
 ```{r import_data1, eval=T}
 
-par(mfrow = c(2, 2))
+par(mfrow = c(1, 2))
 # Fig. 1a - Comparative boxplot for the number of frac stages between target formations
 with(bakken, boxplot(jitter(stage) ~ targetFormation, ylab = "Stages", names = c("Bakken", "Three Forks")))
 stats = c(13, 26, 30, 35, 48) # lower wisker, 1st, 2nd & 3rd qartiles and upper wisker
@@ -62,6 +67,7 @@ c(sum(bakken$totalFluid > 50000), sum(bakken$totalFluid > 100000), sum(bakken$to
 - Variation of completion parameters with time from 2008 - 2016. Fig. 2a seems to suggest an increasing trend in the number of stages used in completions between this period. There does not appear to be a systematic change in the length of lateral and perforated interval since 2008 (Fig. 2b). However, we see an increasing tendency towards perforating the lateral in the 9,000 ft. - 11,000 ft. range. As mentioned previously, the use of more than 5MM lbs of proppants started becoming popular after 2014. Most of the completions prior to 2012 utilized less than 100,000 bbls of total fluid and like the case of total proppants, the use of more than 100,000 bbls of total fluid became increasingly popular from 2013 and well into the downturn (Fig. 2d). This tendency to use more proppants and fluid volume may have led operators to complete fewer wells as a way of cutting overall cost during the downturn (fig. 2e).
 
 ```{r import_data2, eval=T}
+par(mfrow = c(1, 2))
 # fig. 2a -Variation of Frac stages used in completions with time
 with(bakken, plot(completionDate, stage, xlab = "Completion Date", ylab = "Stages"))
 
@@ -96,6 +102,7 @@ plot(a$`year(completionDate)`, a$wellcount, type='o', col='blue', xlab = "Year C
 - Looking at injection rate and pressure
 
 ```{r import_data4, eval=T}
+par(mfrow = c(1, 2))
 # Fig. 3a: Distribution of Maximum Injection Pressure
 with(bakken, hist(maxInjPres, main = "",  xlab = "Maximum Injection Pressure, Psia"))
 c(min(bakken$maxInjPres), mean(bakken$maxInjPres), max(bakken$maxInjPres)) # 2836,  8366, 12112 
@@ -118,6 +125,7 @@ with(bakken, boxplot(maxInjRate ~ targetFormation, ylab = "Max. Inj. Rate, bbl/m
 - Looking at TVD, TD, Peak Oil and 12 month oil
 
 ```{r import_data5, eval=T}
+par(mfrow = c(1, 2))
 # Fig. 4a: Distribution of True Vertical Depth, ft
 with(bakken, hist(TVD, main = "", breaks = 50,  xlab = "True Vertical Depth, ft"))
 # Fig. 4b: Distribution of Total Depth, ft
@@ -139,6 +147,7 @@ With the on-going growth in the world of "big data", several data science techni
 - Application of Neural Network to model First Year Production using one hidden layer with one node. NN uses numeric data for analysis, hence there is the need to subset our data to extract the variables that are important to our analysis. These variables are measured in different units, as a result, it is good practice to standardize these. We would need to re-scale the final result back to the original scale. 
 
 ```{r import_data6, eval=T}
+
 data = bakken[, c("First12Oil", "totalDepth", "TVD", "perfInterval",  "stage", "maxInjRate", 
   "maxInjPres", "totalProp", "totalFluid", "peakOil")]
 
@@ -157,12 +166,14 @@ n = names(train_data)
 y = "First12Oil"  # Variable of interest. Should be character
 f <- as.formula(paste(y, "~", paste(n[!n %in% y], collapse = " + ")))
 fit_net = neuralnet(f, data = train_data, hidden = 1)
-plot(fit_net)
 
 # Test/Validate the model in two ways
 # 1- by the compute method in R
 predicted_data <- compute(fit_net, test_data[, !n %in% y])
 pred_data = predicted_data$net.result*(max_data[y] - min_data[y]) + min_data[y]
+
+plot(fit_net)
+plot(pred_data, data$First12Oil[-idx])
 ```
 
 - Now let's compute the predicted values "by hand":
@@ -228,14 +239,17 @@ n = names(train_data)
 y = "First12Oil"  # Variable of interest. Should be character
 f <- as.formula(paste(y, "~", paste(n[!n %in% y], collapse = " + ")))
 fit_net = neuralnet(f, data = train_data, hidden = 3)
-plot(fit_net)
-```
 
-```{r import_data9, eval=T}
 # Test/Validate the model in two ways
 # 1- by the compute method in R
 predicted_data <- compute(fit_net, test_data[, !n %in% y])
 pred_data = predicted_data$net.result*(max_data[y] - min_data[y]) + min_data[y]
+
+plot(fit_net)
+plot(pred_data, data$First12Oil[-idx])
+```
+
+```{r import_data9, eval=T}
 
 # 2- by opening the "blackbox"
 b10 = fit_net$weights[[1]][[1]][1,1]; b11 = fit_net$weights[[1]][[1]][2,1]
