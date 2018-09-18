@@ -1,13 +1,20 @@
 ---
-output:
-  word_document: default
-  html_document: default
----
----
 title: "Neural Network & the Bakken- What goes on Under the Hood?"
 author: "Marshal Wigwe"
 output:  word_document
   ---
+
+
+```{r global_options, echo=FALSE, results=FALSE, warning=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',  echo=T, eval=T,warning=FALSE, message=FALSE)
+```
+
+```{r load_packages, echo=F, eval=T, results=FALSE}
+x <- c("lubridate", "neuralnet")
+#install.packages(x) # warning: this may take a number of minutes
+# For best result, uncomment above line and install package first time.
+lapply(x, library, character.only = TRUE) #load the required packages
+```
 
 # Introduction
 
@@ -21,15 +28,15 @@ We currently live in the world of "big data" and several operators are beginning
  
 - import data into R and Preprocess the data
 
-```{r import data, eval = TRUE}
+```{r import_data, eval = TRUE}
 bakken = read.csv("bakken_data.csv")
 
-library(lubridate)
 bakken$completionDate = mdy(bakken$completionDate)
 bakken$firstProdDate = mdy(bakken$firstProdDate)
 
 # Table 1: Distribution of wells by County and Formation
-addmargins(table(bakken$County, bakken$targetFormation))
+table1 = addmargins(table(bakken$County, bakken$targetFormation))
+kable
 
 ```
 
@@ -151,7 +158,6 @@ With the on-going growth in the world of "big data", several data science techni
 data = bakken[, c("First12Oil", "totalDepth", "TVD", "perfInterval",  "stage", "maxInjRate", 
   "maxInjPres", "totalProp", "totalFluid", "peakOil")]
 
-library(neuralnet)  
 set.seed(12345)
 max_data <- apply(data, 2, max); min_data <- apply(data, 2, min)
 data_scaled <- scale(data, center = min_data, scale = max_data - min_data) 
@@ -166,14 +172,17 @@ n = names(train_data)
 y = "First12Oil"  # Variable of interest. Should be character
 f <- as.formula(paste(y, "~", paste(n[!n %in% y], collapse = " + ")))
 fit_net = neuralnet(f, data = train_data, hidden = 1)
+plot(fit_net)
 
 # Test/Validate the model in two ways
 # 1- by the compute method in R
 predicted_data <- compute(fit_net, test_data[, !n %in% y])
 pred_data = predicted_data$net.result*(max_data[y] - min_data[y]) + min_data[y]
 
-plot(fit_net)
+pred_lm = lm(data$First12Oil[-idx] ~ pred_data)
 plot(pred_data, data$First12Oil[-idx])
+abline(pred_lm)
+summary(pred_lm)
 ```
 
 - Now let's compute the predicted values "by hand":
@@ -239,14 +248,17 @@ n = names(train_data)
 y = "First12Oil"  # Variable of interest. Should be character
 f <- as.formula(paste(y, "~", paste(n[!n %in% y], collapse = " + ")))
 fit_net = neuralnet(f, data = train_data, hidden = 3)
+plot(fit_net)
 
 # Test/Validate the model in two ways
 # 1- by the compute method in R
 predicted_data <- compute(fit_net, test_data[, !n %in% y])
 pred_data = predicted_data$net.result*(max_data[y] - min_data[y]) + min_data[y]
 
-plot(fit_net)
+pred_lm = lm(data$First12Oil[-idx] ~ pred_data)
 plot(pred_data, data$First12Oil[-idx])
+abline(pred_lm)
+summary(pred_lm)
 ```
 
 ```{r import_data9, eval=T}
