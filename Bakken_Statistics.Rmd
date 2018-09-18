@@ -1,16 +1,16 @@
 ---
-title: "Neural Network & the Bakken- What goes on Under the Hood?"
+title: "Neural Network using R & the Bakken- Opening the blackbox"
 author: "Marshal Wigwe"
 output:  word_document
-  ---
+---
 
 
-```{r global_options, echo=FALSE, results=FALSE, warning=FALSE}
-knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',  echo=T, eval=T,warning=FALSE, message=FALSE)
+```{r global_options, echo = FALSE, results = FALSE, warning = FALSE}
+knitr::opts_chunk$set(fig.width = 7, fig.height = 5, fig.path = 'Figs/',  echo = T, eval = T,warning = FALSE, message = FALSE)
 ```
 
-```{r load_packages, echo=F, eval=T, results=FALSE}
-x <- c("lubridate", "neuralnet")
+```{r load_packages, echo = F, eval = T, results = FALSE}
+x <- c("lubridate", "knitr", "neuralnet")
 #install.packages(x) # warning: this may take a number of minutes
 # For best result, uncomment above line and install package first time.
 lapply(x, library, character.only = TRUE) #load the required packages
@@ -18,142 +18,143 @@ lapply(x, library, character.only = TRUE) #load the required packages
 
 # Introduction
 
-We currently live in the world of "big data" and several operators are beginning to apply data science tools for optimization of oil and gas production, among other things. About 88% of the 170 Bbbl. most likely estimate of the OOIP in the Bakken and Three Fork are located in six of the nineteen producing counties in North Dakota. These counties are Burke (10.04%), Divide (10.46%), Dunn (11.87%), McKenzie (21.51%), Mountrail (17.10%) and Williams (17.11%). The dataset used in this analysis contains 5755 wells, distributed in these counties as shown in Table 1. These wells were completed between 2008 and 2016, with at least one year of production recorded. The use of neural network as a predictive tool is common practice and most times, we tend to treat this tool as a "blackbox". We provide the "box" some input parameters, and it spills out a result. However, it is important we understand what goes on under the hood, to open the "blackbox". In the example shown here, we will predict the first twelve month oil production using well completion and production variables. We would discuss simple models, but it is important to understand the our dataset.
+We currently live in the world of "big data" and several operators are beginning to apply data science tools for understanding and optimization of oil and gas production, among other things. In the Bakken and Three Fork, about 88% of the 170 Bbbl. most likely estimate of the OOIP are located in six of the nineteen producing counties in North Dakota, according to `NDGS` 2010 assessment. These counties are Burke (10.04%), Divide (10.46%), Dunn (11.87%), McKenzie (21.51%), Mountrail (17.10%) and Williams (17.11%). The dataset used in this analysis contains 5755 wells, distributed in these counties as shown in `Table 1`. These wells were completed between 2008 and 2016, with at least one year of production recorded. 
+The use of neural network as a predictive tool is common practice and most times, we tend to treat this tool as a "blackbox". We provide the "box" some input parameters, and it spills out a result or prediction. However, it is important we understand what goes on under the hood, to open the "blackbox". In the example shown here, we will predict the first twelve month oil production using well completion and production variables. We would discuss simple models, but first, let us understand our dataset.
 
 ## Analysis Routine: Data Import
 
-- To get started with this analysis, direct your R session to a dedicated working directory which should contain the bakken dataset. Remember to convert date variables to date. This was imported by read.csv function as factors. We would use several packages available in R.
+To get started with this analysis, direct your R session to a dedicated working directory which should contain the `bakken` dataset. Remember to convert date variables to date, we used the `lubridate` package for this. Date variables were imported by `read.csv` function as factors.
 
  - [bakken](./bakken_data.csv)
  
 - import data into R and Preprocess the data
+Preprocessing here implies converting date variables that were imported as factors to date.
 
 ```{r import_data, eval = TRUE}
 bakken = read.csv("bakken_data.csv")
-
 bakken$completionDate = mdy(bakken$completionDate)
 bakken$firstProdDate = mdy(bakken$firstProdDate)
 
 # Table 1: Distribution of wells by County and Formation
 table1 = addmargins(table(bakken$County, bakken$targetFormation))
-kable
-
+kable(table1, format = "pandoc", caption = "Table 1: Distribution of wells by County and Formation")
 ```
 
-### Distribution of completion parameters
+### Distribution of Completion Parameters
 
-- Let's take a look at the distribution of the number of stages, total pounds of proppant, total volume of fluid injected and the perforated interval typically used in frac jobs in the Bakken and Three Forks formations (fig. 1). The comparative boxplot shows the number of stages. We can observe that on average, operators are using the same application in both formations for the number of stages (30 stages). There is more variability in the bakken compared to the Three Forks. For the perforated interval, the histogram shows that most operators favor a perforated interval in the 8,000 ft. to 11,000 ft. range on the lateral. The distribution of total pounds of proppant used for the frac jobs is shown in the boxplot. Most frac jobs used less than 5 million pounds of total proppants.As we shall see later, of the 657 occurrences of application of more than 5 million pounds of total proppants, only 83 cases occurred prior to 2014 (Fig. 2). This indicates that the use of large pounds of proppants started becoming popular during the downturn. On average, 75,000 bbls of fluid and 3.5 million pounds of proppants were used for the 30 stage completion of a 9,300 ft. perforated interval between 2008 and 2016.
+Let's take a look at the distribution of the number of stages, total pounds of proppant, total volume of fluid injected and the perforated interval typically used in frac jobs in the Bakken and Three Forks formations (`fig. 1`). The comparative boxplot shows the number of stages. We can observe that on average, operators are using the same application in both formations for the number of stages (30 stages). There is also more variability in number of stages in the bakken compared to the Three Forks. For the perforated interval, the histogram shows that most operators favor a perforated interval in the 8,000 ft. to 11,000 ft. range on the lateral. The distribution of total pounds of proppant used for the frac jobs is as shown. Most frac jobs used less than 5 million pounds of total proppants (the red line).As we shall see later, of the 656 occurrences of application of more than 5 million pounds of total proppants, only 83 cases occurred prior to 2014 (`Fig. 2`). This indicates that the use of large pounds of proppants started becoming popular during the downturn. To summarize this, on average, 75,000 bbls of fluid and 3.5 million pounds of proppants were used for the 30 stage completion of a 9,300 ft. perforated interval between 2008 and 2016.
 
 
-```{r import_data1, eval=T}
+```{r import_data1, eval = T, echo = F}
 
 par(mfrow = c(1, 2))
 # Fig. 1a - Comparative boxplot for the number of frac stages between target formations
-with(bakken, boxplot(jitter(stage) ~ targetFormation, ylab = "Stages", names = c("Bakken", "Three Forks")))
+with(bakken, boxplot(jitter(stage) ~ targetFormation, ylab = "Stages", main = "Fig. 1a", names = c("Bakken", "Three Forks")))
 stats = c(13, 26, 30, 35, 48) # lower wisker, 1st, 2nd & 3rd qartiles and upper wisker
 abline(h = stats, lty = 2)
 
 # Fig. 1b: Distribution of Perforated Interval for all Wells
-with(bakken, hist(perfInterval, main = "",  xlab = "Perforated Interval, ft"))
+with(bakken, hist(perfInterval, main = "Fig. 1b",  xlab = "Perforated Interval, ft"))
 abline(v = mean(bakken$perfInterval), lty = 2 ) # average = 9,317 ft
 
 # Fig. 1c: Distribution of total proppant for all Wells
-with(bakken, hist(totalProp, main = "", xlab = "Total Proppants, lbs"))
-abline(v = mean(bakken$totalProp), lty = 2 ) # average = 3,511,481 lbs
-sum(bakken$totalProp > 5000000) # 656 wells with TP > 5MM lbs
+with(bakken, hist(totalProp, main = "Fig. 1c", xlab = "Total Proppants, lbs"))
+abline(v = c(5e6,mean(bakken$totalProp)), lty = c(3,2 ), col = c("red", "black")) # average = 3,511,481 lbs
+#sum(bakken$totalProp > 5000000) # 656 wells with TP > 5MM lbs
 
 # Fig. 1d: Distribution of total fluid for all Wells
-with(bakken, hist(totalFluid, main = "", xlim = c(0, 400000), xlab = "Total Fluid, bbls"))
+with(bakken, hist(totalFluid, main = "Fig. 1d", xlim = c(0, 400000), xlab = "Total Fluid, bbls"))
 abline(v = mean(bakken$totalFluid), lty = 2)
-c(sum(bakken$totalFluid > 50000), sum(bakken$totalFluid > 100000), sum(bakken$totalFluid > 200000)) # 3738  949  308
-
+#c(sum(bakken$totalFluid > 50000), sum(bakken$totalFluid > 100000), sum(bakken$totalFluid > 200000)) # 3738  949  308
+print("Fig. 1: Distribution of completions parameters")
 ``` 
 
-### How has completion parameters changed since 2008
+### How has Completion Parameters changed since 2008
 
-- Variation of completion parameters with time from 2008 - 2016. Fig. 2a seems to suggest an increasing trend in the number of stages used in completions between this period. There does not appear to be a systematic change in the length of lateral and perforated interval since 2008 (Fig. 2b). However, we see an increasing tendency towards perforating the lateral in the 9,000 ft. - 11,000 ft. range. As mentioned previously, the use of more than 5MM lbs of proppants started becoming popular after 2014. Most of the completions prior to 2012 utilized less than 100,000 bbls of total fluid and like the case of total proppants, the use of more than 100,000 bbls of total fluid became increasingly popular from 2013 and well into the downturn (Fig. 2d). This tendency to use more proppants and fluid volume may have led operators to complete fewer wells as a way of cutting overall cost during the downturn (fig. 2e).
+`Fig. 2` shows the variation of completion parameters with time from 2008 - 2016. `Fig. 2a` seems to suggest an increasing trend in the number of frac stages used in completions. There does not appear to be a systematic change in the length of lateral and perforated interval since 2008 (`Fig. 2b`). However, we see an increasing tendency towards perforating the lateral in the 9,000 ft. - 11,000 ft. range. As mentioned previously, we can see that the use of more than 5MM lbs of proppants started becoming popular after 2014 (`Fig. 2c`). Most of the completions prior to 2012 utilized less than 100,000 bbls of total fluid and like the case of total proppants, the use of more than 100,000 bbls of total fluid became increasingly popular from 2013 and well into the downturn (`Fig. 2d`). This tendency to use more proppants and higher fluid volume meant that operators could complete fewer wells with a view to "increasing" production (fig. 2e).
 
-```{r import_data2, eval=T}
+```{r import_data2, eval = T, echo = F}
 par(mfrow = c(1, 2))
 # fig. 2a -Variation of Frac stages used in completions with time
-with(bakken, plot(completionDate, stage, xlab = "Completion Date", ylab = "Stages"))
+with(bakken, plot(completionDate, stage, main = "Fig. 2a", xlab = "Completion Date", ylab = "Stages"))
 
 # Fig. 2b - Variations in the Perforated Intervals Used by Operators for Completion
-with(bakken, plot(completionDate, perfInterval, xlab = "Completion Date",  ylab = "Perforated Interval, ft"))
+with(bakken, plot(completionDate, perfInterval, main = "Fig. 2b", xlab = "Completion Date",  ylab = "Perforated Interval, ft"))
 
 # Fig. 2c - Variations in total pounds of proppants Used by Operators for Completion
-with(bakken, plot(completionDate, totalProp, xlab = "Completion Date",  ylab = "Total Proppants, lbs"))
+with(bakken, plot(completionDate, totalProp, main = "Fig. 2c", xlab = "Completion Date",  ylab = "Total Proppants, lbs"))
 abline(h = c(1000000, 5000000), col = "grey")
-sum((bakken$totalProp > 5000000)& (year(bakken$completionDate) > 2013))
+#sum((bakken$totalProp > 5000000)& (year(bakken$completionDate) > 2013))
 
 # Fig. 2d - Variations in total fluid Used by Operators for Completion
-with(bakken, plot(completionDate, totalFluid, xlab = "Completion Date",  ylab = "Total Fluid, bbls"))
+with(bakken, plot(completionDate, totalFluid, main = "Fig. 2d", xlab = "Completion Date",  ylab = "Total Fluid, bbls"))
 abline(h = c(100000, 10000), lty = 2, col = "grey")
-sum((bakken$totalFluid > 100000)& (year(bakken$completionDate) > 2013))
-sum((bakken$totalFluid > 20000)&(bakken$totalFluid < 200000)) # 92% of wells in this range.
-
+#sum((bakken$totalFluid > 100000)& (year(bakken$completionDate) > 2013))
+#sum((bakken$totalFluid > 20000)&(bakken$totalFluid < 200000)) # 92% of wells in this range.
+print("Fig. 2: Distribution of completions parameters cont'd")
 ```
 
 ### Looking at other well parameters 
 
 - Aggregate the number of wells completed by year. 
 
-```{r import_data3, eval=T}
+```{r import_data3, eval = T, echo = F}
 
 bakken$wellcount = 1
 a<-aggregate(wellcount ~ year(completionDate), bakken, sum)
 # Fig. 2e: Variation in well count with Year Completed
 plot(a$`year(completionDate)`, a$wellcount, type='o', col='blue', xlab = "Year Completed", ylab = "Well Count")
+print("Fig. 2e: Wells completed by year")
 ```
 
 - Looking at injection rate and pressure
 
-```{r import_data4, eval=T}
+```{r import_data4, eval = T, echo = F}
 par(mfrow = c(1, 2))
 # Fig. 3a: Distribution of Maximum Injection Pressure
-with(bakken, hist(maxInjPres, main = "",  xlab = "Maximum Injection Pressure, Psia"))
-c(min(bakken$maxInjPres), mean(bakken$maxInjPres), max(bakken$maxInjPres)) # 2836,  8366, 12112 
+with(bakken, hist(maxInjPres, main = "Fig. 3a",  xlab = "Maximum Injection Pressure, Psia"))
+#c(min(bakken$maxInjPres), mean(bakken$maxInjPres), max(bakken$maxInjPres)) # 2836,  8366, 12112 
 ucl = quantile(bakken$maxInjPres, 0.975); lcl = quantile(bakken$maxInjPres, 0.025)
 abline(v = c(ucl, lcl, mean(bakken$maxInjPres)), lty = c(2, 2, 4))
 
 # Fig. 3b: Distribution of Maximum Injection Pressure by Formation
-with(bakken, boxplot(maxInjPres ~ targetFormation, ylab = "Max. Inj. Pressure, Psia", cex = 0.7, names = c("Bakken", "ThreeForks")))
+with(bakken, boxplot(maxInjPres ~ targetFormation, main = "Fig. 3b", ylab = "Max. Inj. Pressure, Psia", cex = 0.7, names = c("Bakken", "ThreeForks")))
 
 # Fig. 3c: Distribution of Maximum Injection Rate
-with(bakken, hist(maxInjRate, main = "",  xlab = "Maximum Injection Rate, bbl/min"))
-c(min(bakken$maxInjRate), mean(bakken$maxInjRate), max(bakken$maxInjRate)) # 8.1, 41, 153.4 ucl = quantile(bakken$maxInjRate, 0.975); lcl = quantile(bakken$maxInjRate, 0.025)
+with(bakken, hist(maxInjRate, main = "Fig. 3c",  xlab = "Maximum Injection Rate, bbl/min"))
+#c(min(bakken$maxInjRate), mean(bakken$maxInjRate), max(bakken$maxInjRate)) # 8.1, 41, 153.4 ucl = quantile(bakken$maxInjRate, 0.975); lcl = quantile(bakken$maxInjRate, 0.025)
 abline(v = c(ucl, lcl, mean(bakken$maxInjRate)), lty = c(2, 2, 4))
 
 # Fig. 3d: Distribution of Maximum Injection Rate by Formation
-with(bakken, boxplot(maxInjRate ~ targetFormation, ylab = "Max. Inj. Rate, bbl/min", names = c("Bakken", "Three Forks")))
-
+with(bakken, boxplot(maxInjRate ~ targetFormation, main = "Fig. 3d", ylab = "Max. Inj. Rate, bbl/min", names = c("Bakken", "Three Forks")))
+print("Fig. 3: Distribution of Injection Rate and Pressure")
 ```
 
 - Looking at TVD, TD, Peak Oil and 12 month oil
 
-```{r import_data5, eval=T}
+```{r import_data5, eval = T, echo = F}
 par(mfrow = c(1, 2))
 # Fig. 4a: Distribution of True Vertical Depth, ft
-with(bakken, hist(TVD, main = "", breaks = 50,  xlab = "True Vertical Depth, ft"))
+with(bakken, hist(TVD, main = "Fig. 4a", breaks = 50,  xlab = "True Vertical Depth, ft"))
 # Fig. 4b: Distribution of Total Depth, ft
-with(bakken, hist(totalDepth, main = "", breaks = 50,  xlab = "Total Depth, ft"))
+with(bakken, hist(totalDepth, main = "Fig. 4b", breaks = 50,  xlab = "Total Depth, ft"))
 # Fig. 4c: Distribution of Peak Month Oil Production
-with(bakken, hist(peakOil, main = "", breaks = 50,  xlab = "Peak Month Oil Production"))
+with(bakken, hist(peakOil, main = "Fig. 4c", breaks = 50,  xlab = "Peak Month Oil Production"))
 # Fig. 4d: Distribution of First Year Cumulative Oil Production
-with(bakken, hist(First12Oil, main = "", breaks = 50,  xlab = "First Year Production"))
-mean(bakken$First12Oil) # 91,441 bbls
-
+with(bakken, hist(First12Oil, main = "Fig. 4d", breaks = 50,  xlab = "First Year Production"))
+#mean(bakken$First12Oil) # 91,441 bbls
+print("Fig. 4: Distribution of Drilling and Production Variables")
 ```
 
 ## Application of Neural Network
 
-With the on-going growth in the world of "big data", several data science techniques are currently being used to evaluate the performance of oil and gas wells. Among commonly used techniques are linear and multiple regression, multivariate analysis, decision trees, and the family of AI, which includes neural network, deep learning, etc.  Neural network regression model belongs to a class of functions called universal approximators, just like polynomial and Fourier functions. These functions can come really close in the estimation of the true mean function if correctly applied. NN is used to estimate the conditional mean functions that are highly non-linear. Hence, NN regression aims to approximate the true (unknown) regression function $f(x)$, using a general non-linear function, say $g(x)$. NN regression uses the logistic function $1/(1 + exp^{-x})$ as activation functions. Iterative techniques that are similar to those used to obtain maximum likelihood, are used to estimate the parameters of the model.
+With the on-going growth in the world of "big data", several data science techniques are currently being used to evaluate the performance of oil and gas wells. Among commonly used techniques are linear and multiple regression, multivariate analysis (includes PCA, cluster and factor analysis, etc), decision trees, and the family of AI, which includes neural network, deep learning, etc.  Neural network regression model belongs to a class of functions called universal approximators, just like polynomial and Fourier functions. These functions can come really close to estimating the true mean function if correctly applied. NN is used to estimate the conditional mean functions that are highly non-linear. Hence, NN regression aims to approximate the true (unknown) regression function $f(x)$, using a general non-linear function, say $g(x)$. NN regression uses the logistic function $1/(1 + exp^{-x})$ as activation function. Iterative techniques that are similar to those used to obtain maximum likelihood, are used to estimate the parameters of the model.
 
-### Prediction of Well Performance using Neural Network - One Node
+### Prediction of Well Performance using NN - One Node
 
-- Application of Neural Network to model First Year Production using one hidden layer with one node. NN uses numeric data for analysis, hence there is the need to subset our data to extract the variables that are important to our analysis. These variables are measured in different units, as a result, it is good practice to standardize these. We would need to re-scale the final result back to the original scale. 
+Application of Neural Network to model First Year Production using one hidden layer with one node. NN uses numeric data for analysis, hence there is the need to subset our data to extract the variables that are important to our analysis. These variables are measured in different units, as a result, it is good practice to standardize the data. We would need to re-scale the final result back to the original scale. 
 
-```{r import_data6, eval=T}
+```{r import_data6, eval = T, echo = F}
 
 data = bakken[, c("First12Oil", "totalDepth", "TVD", "perfInterval",  "stage", "maxInjRate", 
   "maxInjPres", "totalProp", "totalFluid", "peakOil")]
@@ -173,6 +174,7 @@ y = "First12Oil"  # Variable of interest. Should be character
 f <- as.formula(paste(y, "~", paste(n[!n %in% y], collapse = " + ")))
 fit_net = neuralnet(f, data = train_data, hidden = 1)
 plot(fit_net)
+print("Fig. 5: Neural Network Model using one hidden layer")
 
 # Test/Validate the model in two ways
 # 1- by the compute method in R
@@ -182,12 +184,14 @@ pred_data = predicted_data$net.result*(max_data[y] - min_data[y]) + min_data[y]
 pred_lm = lm(data$First12Oil[-idx] ~ pred_data)
 plot(pred_data, data$First12Oil[-idx])
 abline(pred_lm)
+print("Fig. 6: NN Predicted vs Actual 12 month Oil - one hidden layer")
 summary(pred_lm)
 ```
 
-- Now let's compute the predicted values "by hand":
+- Now let's compute the predicted values "by hand"
+The aim of this is to extract the coefficients calculated by the NN model and explicitly specify an equation for the direct calculation of first 12 month cum oil $g(y|x)$.
 
-```{r import_data7, eval=T}
+```{r import_data7, eval = T, echo = F}
 
 # 2- by opening the "blackbox"
 b10 = fit_net$weights[[1]][[1]][1,1]; b11 = fit_net$weights[[1]][[1]][2,1]
@@ -210,28 +214,28 @@ g_y_x = g0 + g1*N1
 g_y_x = g_y_x*(max_data[y] - min_data[y]) + min_data[y]
 
 # Comparing the prediction using compute and "by nand" yield similar result
-sum ( (pred_data - g_y_x)^2 ) # Should be approx. zero within computer error.
+#sum ( (pred_data - g_y_x)^2 ) # Should be approx. zero within computer error.
 
 ``` 
 
 ### Mathematical equations
 
-Depending on the number of neurons/nodes in each hidden layer, we have as many logistic functions added together. To understand what goes on under the hood, from the plot of the model shown above for one hidden layer and one node, the NN uses one logistic function $1/(1 + exp^{-x})$. With two nodes, we add a second logistic function and so on. $h_{1}(x)$ here, is a linear function of the nine variables in the model. 
+Depending on the number of neurons/nodes in each hidden layer, we have as many logistic functions added together. To understand what goes on under the hood, from the plot of the model shown above, the NN uses one logistic function $1/(1 + exp^{-x})$. With two nodes, we add a second logistic function and so on. $h_{1}(x)$ here, is a linear function of the nine variables in the model. 
 
-$$g(y|x) = \gamma_{0} + \frac{\gamma_{1}}{1 + exp^{-h_{1}(x)}}$$
+$$g(y|x) = \gamma_{0} + \frac{\gamma_{1}}{1 + exp^{-h_{1}(x)}} ...... (1)$$
 The result of the analysis above can be summarized in equation form as follows:
 
-$$h_{1}(x) = -0.5634 + 0.6692*totalDepth - 0.2468*TVD - 0.6309*perfInterval - 0.0222*stage + 0.0083*maxInjRate - 0.1389*manInjPres + 0.1542*totalProp + 0.1628*totalFluid + 2.1485*peakOil$$ 
-$$g(y|x) = -0.3885 + \frac{1.2471}{1 + exp^{-h_{1}(x)}}$$
+$$h_{1}(x) = -0.5634 + 0.6692*totalDepth - 0.2468*TVD - 0.6309*perfInterval - 0.0222*stage + 0.0083*maxInjRate - 0.1389*manInjPres + 0.1542*totalProp + 0.1628*totalFluid + 2.1485*peakOil ...... (2)$$ 
+$$g(y|x) = -0.3885 + \frac{1.2471}{1 + exp^{-h_{1}(x)}}...... (3)$$
 Putting the NN model in equation form makes the picture shown in the plot clearer. The values shown on the connecting lines and to the left of the node are the coefficients/weights ($\beta's$) of the variables, while the values shown to the right of the node are the $\gamma's$
 
-- With two and three nodes, we add second and third logistic functions as shown below for three nodes. The linear functions $h_{1}(x)$, $h_{2}(x)$ and $h_{3}(x)$ are different functions. 
+With two and three nodes, we add second and third logistic functions as shown below for three nodes. The linear functions $h_{1}(x)$, $h_{2}(x)$ and $h_{3}(x)$ are different functions. 
 
-$$g(y|x) = \gamma_{0} + \frac{\gamma_{1}}{1 + exp^{-h_{1}(x)}} + \frac{\gamma_{2}}{1 + exp^{-h_{2}(x)}} + \frac{\gamma_{3}}{1 + exp^{-h_{3}(x)}}$$
+$$g(y|x) = \gamma_{0} + \frac{\gamma_{1}}{1 + exp^{-h_{1}(x)}} + \frac{\gamma_{2}}{1 + exp^{-h_{2}(x)}} + \frac{\gamma_{3}}{1 + exp^{-h_{3}(x)}}...... (4)$$
 
-### Evaluation of Well Performance using Neural Network - three nodes.
+### Evaluation of Well Performance using NN - three nodes.
 
-```{r import_data8, eval=T}
+```{r import_data8, eval = T, echo = F}
 
 set.seed(12345)
 max_data <- apply(data, 2, max) 
@@ -249,6 +253,7 @@ y = "First12Oil"  # Variable of interest. Should be character
 f <- as.formula(paste(y, "~", paste(n[!n %in% y], collapse = " + ")))
 fit_net = neuralnet(f, data = train_data, hidden = 3)
 plot(fit_net)
+print("Fig. 7: Neural Network Model using three hidden layers")
 
 # Test/Validate the model in two ways
 # 1- by the compute method in R
@@ -258,10 +263,11 @@ pred_data = predicted_data$net.result*(max_data[y] - min_data[y]) + min_data[y]
 pred_lm = lm(data$First12Oil[-idx] ~ pred_data)
 plot(pred_data, data$First12Oil[-idx])
 abline(pred_lm)
+print("Fig. 8: NN Predicted vs Actual 12 month Oil - three hidden layer")
 summary(pred_lm)
 ```
 
-```{r import_data9, eval=T}
+```{r import_data9, eval = T, echo = F}
 
 # 2- by opening the "blackbox"
 b10 = fit_net$weights[[1]][[1]][1,1]; b11 = fit_net$weights[[1]][[1]][2,1]
@@ -304,14 +310,35 @@ g_y_x = g0 + g1*N1 + g2*N2 + g3*N3
 g_y_x = g_y_x*(max_data[y] - min_data[y]) + min_data[y]
 
 # Comparing the prediction using compute and "by nand" yield similar result
-sum ( (pred_data - g_y_x)^2 )# Should be approx. zero within computer error.
+#sum ( (pred_data - g_y_x)^2 )# Should be approx. zero within computer error.
 ``` 
 
 ### Put the Solution in Mathematical form
+- For node 1
+$$h_{1}(x) = 1.6523 - 1.3239*totalDepth + 0.8746*TVD + 0.8528*perfInterval + 0.7155*stage + 0.2655*maxInjRate + 1.5617*manInjPres - 1.0303*totalProp - 1.2765*totalFluid - 2.1462*peakOil...... (5)$$
+- For node 2
+$$h_{2}(x) = -0.6615 + 0.0793*totalDepth + 0.2999*TVD + 0.0390*perfInterval + 0.2095*stage - 1.0525*maxInjRate + 0.0601*manInjPres - 1.0560*totalProp - 0.06687*totalFluid - 1.3275*peakOil...... (6)$$
+- For node 3
+$$h_{3}(x) = 0.0747 + 0.4366*totalDepth + 0.5246*TVD - 0.5329*perfInterval + 0.8535*stage - 1.1309*maxInjRate + 1.0508*manInjPres - 2.1921*totalProp - 1.2978*totalFluid + 3.7133*peakOil...... (7)$$
+- Putting it all together
 
-$$h_{1}(x) = 1.6523 - 1.3239*totalDepth + 0.8746*TVD + 0.8528*perfInterval + 0.7155*stage + 0.2655*maxInjRate + 1.5617*manInjPres - 1.0303*totalProp - 1.2765*totalFluid - 2.1462*peakOil$$
-$$h_{2}(x) = -0.6615 + 0.0793*totalDepth + 0.2999*TVD + 0.0390*perfInterval + 0.2095*stage - 1.0525*maxInjRate + 0.0601*manInjPres - 1.0560*totalProp - 0.06687*totalFluid - 1.3275*peakOil$$
-$$h_{3}(x) = 0.0747 + 0.4366*totalDepth + 0.5246*TVD - 0.5329*perfInterval + 0.8535*stage - 1.1309*maxInjRate + 1.0508*manInjPres - 2.1921*totalProp - 1.2978*totalFluid + 3.7133*peakOil$$
+$$g(y|x) = 0.7849 - \frac{0.9665}{1 + exp^{-h_{1}(x)}} - \frac{0.7070}{1 + exp^{-h_{2}(x)}} + \frac{0.5620}{1 + exp^{-h_{3}(x)}}.............(8)$$
+These equations can get really complex if we consider several nodes or at worse, multiple hidden layers. 
+
+## Conclusion
+
+We have demonstrated that it is possible to get the mathematical forms of the result of neural network model output. It is also obvious why we tend to simply rely on the model to generate predicted values rather than have this good-looking but sometimes complicated NN models as shown in the equations above. First, it is simpler to just predict the values of the first 12 month oil using the `compute` function in `r`, rather than go through the lenghty process of extracting all the coefficients of the model as we have done. Second, since the model works with some random number generating process used for splitting the model into training and testing sets, there is a need to use `set.seed` function to force the model to pick the same random samples each time we run it. Otherwise, the model will use different sample sets every time it is run, and the equations generated above will be different each time. With `set.seed` the results of this article are also easily reproduced.
 
 
-$$g(y|x) = 0.7849 - \frac{0.9665}{1 + exp^{-h_{1}(x)}} - \frac{0.7070}{1 + exp^{-h_{2}(x)}} + \frac{0.5620}{1 + exp^{-h_{3}(x)}}$$
+
+### Github Page
+This analysis can be viewed on my github repository. Readers can reproduce the work and play with the data as well. To view the plot of the neural network, you will need to run the `chunck` `import_data6` and `import_data8`. Goto [githib](https://github.com/wimarshez/PermianBasin_PipelineNewsletter)
+
+#### Packages used
+- `rmarkdown`, lubridate`, `knitr`, and `neuralnet`.
+
+### Reference
+Nordeng, S. H., & Helms, L. D. (2010). Bakken Source System–Three Forks Formation Assessment. [NDGS](https://www.dmr.nd.gov/ndgs/bakken/bakkenthree.asp)
+
+## About the Author
+Marshal Wigwe is a graduate student at Texas Tech University. He is currently working on his PHD in Reservoir Engineering, with focus in Big Data Analytics. He also serves on the board of SPE-PB Young Professionals as the Communications Chair and participates in several volunteer programs. Connect with him on [LinkenIn](https://www.linkedin.com/in/marshal-wigwe-93794319)
