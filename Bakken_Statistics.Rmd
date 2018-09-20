@@ -1,5 +1,5 @@
 ---
-title: "Neural Network using R & the Bakken- Opening the blackbox"
+title: "Open the `blackbox` in Neural Network using R & Bakken Data"
 author: "Marshal Wigwe"
 output:  word_document
 ---
@@ -15,6 +15,7 @@ x <- c("lubridate", "knitr", "neuralnet")
 # For best result, uncomment above line and install package first time.
 lapply(x, library, character.only = TRUE) #load the required packages
 ```
+
 
 # Introduction
 
@@ -182,7 +183,7 @@ predicted_data <- compute(fit_net, test_data[, !n %in% y])
 pred_data = predicted_data$net.result*(max_data[y] - min_data[y]) + min_data[y]
 
 pred_lm = lm(data$First12Oil[-idx] ~ pred_data)
-plot(pred_data, data$First12Oil[-idx])
+plot(pred_data, data$First12Oil[-idx], xlab = "Predicted 12 month Cum, bbls", ylab = "Actual 12 month Cum, bbls")
 abline(pred_lm)
 print("Fig. 6: NN Predicted vs Actual 12 month Oil - one hidden layer")
 summary(pred_lm)
@@ -261,7 +262,7 @@ predicted_data <- compute(fit_net, test_data[, !n %in% y])
 pred_data = predicted_data$net.result*(max_data[y] - min_data[y]) + min_data[y]
 
 pred_lm = lm(data$First12Oil[-idx] ~ pred_data)
-plot(pred_data, data$First12Oil[-idx])
+plot(pred_data, data$First12Oil[-idx], xlab = "Predicted 12 month Cum, bbls", ylab = "Actual 12 month Cum, bbls")
 abline(pred_lm)
 print("Fig. 8: NN Predicted vs Actual 12 month Oil - three hidden layer")
 summary(pred_lm)
@@ -340,5 +341,5 @@ This analysis can be viewed on my github repository. Readers can reproduce the w
 ### Reference
 Nordeng, S. H., & Helms, L. D. (2010). Bakken Source System–Three Forks Formation Assessment. [NDGS](https://www.dmr.nd.gov/ndgs/bakken/bakkenthree.asp)
 
-## About the Author
-Marshal Wigwe is a graduate student at Texas Tech University. He is currently working on his PHD in Reservoir Engineering, with focus in Big Data Analytics. He also serves on the board of SPE-PB Young Professionals as the Communications Chair and participates in several volunteer programs. Connect with him on [LinkenIn](https://www.linkedin.com/in/marshal-wigwe-93794319)
+### About the Author
+Marshal Wigwe is a graduate student at Texas Tech University. He is currently working on his PHD in Reservoir Engineering, with focus in Big Data Analytics. His PHD Advisor is Dr. Marshall Watson, TTU PE Department Chair. He also serves on the board of SPE-PB Young Professionals as the Communications Chair and participates in several volunteer programs. Connect with him on [LinkenIn](https://www.linkedin.com/in/marshal-wigwe-93794319)
